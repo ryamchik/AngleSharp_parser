@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using AngleSharp;
 
@@ -14,41 +16,6 @@ namespace AngleSharp_parser
             //var address = "https://www.toy.ru/catalog/toys-spetstekhnika/childs_play_lvy023_pozharnaya_mashina/";
             var parser = new Parser(address);
             var result = parser.Parse().Result;
-
-            Console.WriteLine(result.Region);
-
-            Console.WriteLine(new string('=', 20));
-
-            //foreach (var breadcrumb in result.BreadCrumbs)
-            Console.WriteLine(result.BreadCrumbs);
-
-            Console.WriteLine(new string('=', 20));
-
-            Console.WriteLine(result.ProductName);
-
-            Console.WriteLine(new string('=', 20));
-
-            Console.WriteLine(result.PriceCurrent);
-
-            Console.WriteLine(new string('=', 20));
-
-            Console.WriteLine(result.PriceOld);
-
-            Console.WriteLine(new string('=', 20));
-
-            Console.WriteLine(result.Available);
-
-            Console.WriteLine(new string('=', 20));
-
-            foreach (var item in result.Images)
-                Console.WriteLine(item);
-
-            Console.WriteLine(new string('=', 20));
-
-            Console.WriteLine(result.Link);
-
-            // Запись результата парсинга в csv.
-
             // Доп.плюшки с регионом.
         }
     }
@@ -72,28 +39,38 @@ namespace AngleSharp_parser
             var cell = document.QuerySelector(cellSelector).QuerySelector("a");
             result.Region = cell.TextContent.Trim();
 
-            cellSelector = ".breadcrumb-item";
-            var breadcrumbs = document.QuerySelectorAll(cellSelector);
-            var ar = new List<string>();
+            cellSelector = ".breadcrumb";
+            var breadcrumbs = document.QuerySelector(cellSelector).QuerySelectorAll("a.breadcrumb-item");
+            var buffer = new List<string>();
 
             foreach (var breadcrumb in breadcrumbs)
             {
-                ar.Add(breadcrumb.TextContent);
+                buffer.Add(breadcrumb.TextContent.Trim());
             }
 
-            result.BreadCrumbs = String.Join(",", ar.ToArray());
-
             result.ProductName = GetArgument(".detail-name", document);
+            buffer.Add(result.ProductName);
+            result.BreadCrumbs = String.Join(",", buffer.ToArray());
             result.PriceCurrent = GetArgument(".price", document);
             result.PriceOld = GetArgument(".old-price", document);
             result.Available = GetArgument(".ok", document, "Нет в наличии");
-            
+            var images = new List<string>();
+
             foreach (var image in document.Images)
             {
-                result.Images.Add(image.Source);
+                if (image.GetAttribute("class") == "img-fluid")
+                     images.Add(image.Source.Trim());
             }
 
+            result.Images = String.Join(",", images.ToArray());
             result.Link = document.Url;
+
+            using (var stream = new StreamWriter("test.csv", false, Encoding.UTF8))
+            {
+                stream.WriteLine("{0};{1};{2};{3};{4};{5};{6};{7}",
+                    result.Region, result.ProductName, result.BreadCrumbs, result.PriceCurrent, 
+                    result.PriceOld, result.Available, result.Images, result.Link);
+            }
 
             return result;
         }
@@ -107,8 +84,6 @@ namespace AngleSharp_parser
         }
     }
 
-
-
     public class ProductInfo
     {
         public string Region { get; set; }
@@ -117,7 +92,7 @@ namespace AngleSharp_parser
         public string PriceCurrent { get; set; }
         public string PriceOld { get; set; }
         public string Available { get; set; }
-        public List<string> Images { get; set; } = new List<string>();
+        public string Images { get; set; }
         public string Link { get; set; }
     }
 }
