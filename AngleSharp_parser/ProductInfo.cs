@@ -1,6 +1,6 @@
 ﻿namespace AngleSharp_parser
 {
-    public class ProductInfo
+    public struct ProductInfo
     {
         public string Region { get; set; }
         public string ProductName { get; set; }

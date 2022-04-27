@@ -1,21 +1,15 @@
-﻿
-
-namespace AngleSharp_parser
+﻿namespace AngleSharp_parser
 {
     class Program
     {
         static void Main(string[] args)
         {
-            //var address = "https://www.toy.ru/catalog/toys-spetstekhnika/childs_play_lvy025_fermerskiy_traktor/";
-            //var address = "https://www.toy.ru/catalog/toys-spetstekhnika/childs_play_lvy023_pozharnaya_mashina/";
             var address = "https://www.toy.ru/catalog/boy_transport/";
             var parser = new Parser(address);
-            parser.Parse();
+            var records = parser.Parse().Result;
 
-            Document.Create();
-            
-            //var record = parser.ParseSite().Result;
-            
+            Document.Make(records);
+
             // Доп.плюшки с регионом.
         }
     }

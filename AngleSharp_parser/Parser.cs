@@ -10,25 +10,65 @@ namespace AngleSharp_parser
     {
         string address = string.Empty;
         AngleSharp.Dom.IDocument document;
+        AngleSharp.IConfiguration config;
+        const string HOST = "https://";
+        const string URL = "www.toy.ru";
 
         public Parser(string address)
         {
             this.address = address;
+            this.config = Configuration.Default.WithDefaultLoader();
         }
 
-        public async void Parse()
+        public async Task<List<ProductInfo>> Parse()
         {
-            var config = Configuration.Default.WithDefaultLoader();
             document = await BrowsingContext.New(config).OpenAsync(address);
-            var cards = document.QuerySelectorAll(".product-card");
+            var pages = document.QuerySelectorAll(".page-item");
+            var records = new List<ProductInfo>();
+            var lastAddress = HOST + URL + pages[pages.Length - 2].QuerySelector("a").GetAttribute("href");
+            var nextAddress = HOST + URL + pages[pages.Length - 1].QuerySelector("a").GetAttribute("href");
+            var currentAddress = address;
+            var counter = 2;
+            
+            while (counter <= 11)
+            {
+                var links = new List<string>();
+                var cards = document.QuerySelectorAll(".product-card");
 
-            Console.WriteLine(cards.Length);
+                foreach (var card in cards)
+                {
+                    links.Add(card.QuerySelector("meta").GetAttribute("content"));
+                }
+
+                var tasks = new List<Task>();
+
+                foreach (var link in links)
+                {
+                    tasks.Add(ParseSite(link));
+                }
+
+                while (tasks.Count > 0)
+                {
+                    Task<ProductInfo> finishedTask = (Task<ProductInfo>)await Task.WhenAny(tasks);
+                    records.Add(finishedTask.Result);
+                    tasks.Remove(finishedTask);
+                }
+
+                currentAddress = nextAddress;
+                counter++;
+                document = await BrowsingContext.New(config).OpenAsync(currentAddress);
+                nextAddress = nextAddress[0..^1] + Convert.ToString(counter);
+                Console.WriteLine(currentAddress);
+                Console.WriteLine(nextAddress);
+                Console.WriteLine(records.Count);
+            }
+
+            return records;
         }
 
-        public async Task<ProductInfo> ParseSite()
+        public async Task<ProductInfo> ParseSite(string path)
         {
-            var config = Configuration.Default.WithDefaultLoader();
-            document = await BrowsingContext.New(config).OpenAsync(address);
+            document = await BrowsingContext.New(config).OpenAsync(path);
             var record = new ProductInfo();
 
             var cellSelector = ".select-city-link";
