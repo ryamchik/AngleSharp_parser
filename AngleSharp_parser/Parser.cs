@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using AngleSharp;
+using AngleSharp.Html.Dom;
 
 namespace AngleSharp_parser
 {
@@ -68,7 +69,7 @@ namespace AngleSharp_parser
 
         public async Task<ProductInfo> ParseSite(string path)
         {
-            document = await BrowsingContext.New(config).OpenAsync(path);
+            var document = await BrowsingContext.New(config).OpenAsync(path);
             var record = new ProductInfo();
 
             var cellSelector = ".select-city-link";
@@ -87,6 +88,7 @@ namespace AngleSharp_parser
             record.ProductName = GetArgument(".detail-name");
             buffer.Add(record.ProductName);
             record.BreadCrumbs = String.Join(",", buffer.ToArray());
+
             record.PriceCurrent = GetArgument(".price");
             record.PriceOld = GetArgument(".old-price");
             record.Availability = GetArgument(".ok", "Нет в наличии");
@@ -100,16 +102,28 @@ namespace AngleSharp_parser
 
             record.Images = String.Join(",", images.ToArray());
             record.Url = document.Url;
-
             return record;
+
+            string GetArgument(string cellselector, string text = "")
+            {
+                var cell = document.QuerySelector(cellselector);
+                var result = (cell != null) ? cell.TextContent.Trim() : text;
+                return result;
+            }
         }
 
-        public string GetArgument(string cellselector, string text = "")
+        public async void Change(string region)
         {
-            var cell = document.QuerySelector(cellselector);
-            var result = (cell != null) ? cell.TextContent.Trim() : text;
+            var _context = BrowsingContext.New(config);
+            document = await _context.OpenAsync(address);
+            (document.QuerySelector(".select-city-link").QuerySelector("a") as IHtmlElement).DoClick();
+            document.QuerySelector("#region").SetAttribute("style", "display: inline-block;");
+            document.QuerySelector(".select-city-block").SetAttribute("value", region);
 
-            return result;
+            (document.QuerySelector("button[id=\"savecity\"]") as IHtmlElement).DoClick();
+            Task.Delay(5000);
+            
+            Console.WriteLine(document.QuerySelector(".select-city-link").QuerySelector("a").TextContent.Trim());
         }
     }
 }
